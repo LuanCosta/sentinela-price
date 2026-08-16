@@ -1,0 +1,17 @@
+{
+  "info": {"name": "Mercado Livre Price Tracker MVP", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8080"},
+    {"key": "adminSecret", "value": "troque-este-valor"}
+  ],
+  "item": [
+    {"name": "Health", "request": {"method": "GET", "url": "{{baseUrl}}/health"}},
+    {"name": "Sincronizar com termos padrão", "request": {"method": "POST", "header": [{"key":"X-Admin-Secret","value":"{{adminSecret}}"}], "url": "{{baseUrl}}/api/admin/sync"}},
+    {"name": "Sincronizar com termos informados", "request": {"method": "POST", "header": [{"key":"X-Admin-Secret","value":"{{adminSecret}}"},{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"searchTerms\": [\"notebook\", \"placa de vídeo\"]\n}"}, "url": "{{baseUrl}}/api/admin/sync"}},
+    {"name": "Produtos", "request": {"method": "GET", "url": "{{baseUrl}}/api/products?page=1&limit=20&search=notebook"}},
+    {"name": "Histórico do produto", "request": {"method": "GET", "url": "{{baseUrl}}/api/products/1/history?page=1&limit=50"}},
+    {"name": "Promoções", "request": {"method": "GET", "url": "{{baseUrl}}/api/promotions?page=1&limit=20&active=true"}},
+    {"name": "Detalhe da promoção", "request": {"method": "GET", "url": "{{baseUrl}}/api/promotions/1"}},
+    {"name": "Execuções", "request": {"method": "GET", "header": [{"key":"X-Admin-Secret","value":"{{adminSecret}}"}], "url": "{{baseUrl}}/api/admin/sync/executions?page=1&limit=20"}}
+  ]
+}
