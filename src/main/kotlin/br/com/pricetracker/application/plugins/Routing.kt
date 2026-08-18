@@ -11,6 +11,8 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
 import java.security.MessageDigest
 
 fun Application.configureRouting(
@@ -19,6 +21,7 @@ fun Application.configureRouting(
     syncService: ProductSyncService,
     adminSecret: String
 ) {
+    val logger = LoggerFactory.getLogger("SyncRoute")
     routing {
         get("/health") { call.respond(HealthResponse("ok")) }
         route("/api") {
@@ -63,7 +66,15 @@ fun Application.configureRouting(
                 }
                 post("/sync") {
                     val request = if ((call.request.contentLength() ?: 0L) == 0L) SyncRequest() else call.receive<SyncRequest>()
-                    call.respond(syncService.synchronize(request.searchTerms))
+                    val execution = syncService.start(request.searchTerms)
+                    call.application.launch {
+                        try {
+                            syncService.synchronize(execution.executionId, request.searchTerms)
+                        } catch (error: Exception) {
+                            logger.error("Falha na sincronização assíncrona id={}", execution.executionId, error)
+                        }
+                    }
+                    call.respond(HttpStatusCode.Accepted, execution)
                 }
                 get("/sync/executions") {
                     val (page, limit) = call.pagination()

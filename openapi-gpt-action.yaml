@@ -1,0 +1,253 @@
+openapi: 3.1.0
+info:
+  title: Sentinela Price API
+  version: 1.0.0
+  description: Busca produtos no Mercado Livre, acompanha preços e lista promoções detectadas.
+servers:
+  - url: https://sentinela-price.onrender.com
+paths:
+  /health:
+    get:
+      operationId: verificarServico
+      summary: Verifica se o Sentinela Price está disponível
+      responses:
+        "200":
+          description: Serviço disponível
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /api/admin/sync:
+    post:
+      operationId: iniciarSincronizacao
+      summary: Inicia uma nova sincronização de produtos e preços
+      description: Use somente quando o usuário pedir para procurar, buscar, atualizar ou sincronizar promoções. A operação responde imediatamente com HTTP 202 e status RUNNING. O processamento continua em segundo plano.
+      security:
+        - AdminSecret: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncRequest"
+      responses:
+        "202":
+          description: Sincronização aceita e iniciada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncExecution"
+        "400":
+          description: Requisição inválida
+        "401":
+          description: Segredo administrativo ausente ou incorreto
+        "409":
+          description: Já existe uma sincronização em andamento
+  /api/admin/sync/executions:
+    get:
+      operationId: listarSincronizacoes
+      summary: Consulta as sincronizações mais recentes
+      description: Use depois de iniciar uma sincronização para verificar RUNNING, SUCCESS, PARTIAL_SUCCESS ou FAILED.
+      security:
+        - AdminSecret: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Página de execuções ordenadas da mais recente para a mais antiga
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncExecutionPage"
+        "401":
+          description: Segredo administrativo ausente ou incorreto
+  /api/promotions:
+    get:
+      operationId: listarPromocoes
+      summary: Lista promoções detectadas
+      description: Para recomendações ao usuário, consulte promoções ativas e prefira affiliateUrl como link de compra. Quando affiliateUrl for nulo, use permalink e informe que é o link original.
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: active
+          in: query
+          required: false
+          description: Use true para retornar somente promoções ativas.
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: Página de promoções
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromotionPage"
+components:
+  securitySchemes:
+    AdminSecret:
+      type: apiKey
+      in: header
+      name: X-Admin-Secret
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          examples: [ok]
+    SyncRequest:
+      type: object
+      description: Omita searchTerms para executar a descoberta automática por categorias e revisar produtos monitorados. Envie termos somente quando o usuário solicitar uma busca específica.
+      properties:
+        searchTerms:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+          examples:
+            - [notebook, perfume]
+    SyncExecution:
+      type: object
+      required:
+        - executionId
+        - status
+        - searchTerm
+        - itemsReceived
+        - productsCreated
+        - productsUpdated
+        - historyCreated
+        - promotionsCreated
+        - startedAt
+      properties:
+        executionId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [RUNNING, SUCCESS, PARTIAL_SUCCESS, FAILED]
+        searchTerm:
+          type: string
+        itemsReceived:
+          type: integer
+        productsCreated:
+          type: integer
+        productsUpdated:
+          type: integer
+        historyCreated:
+          type: integer
+        promotionsCreated:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: [string, "null"]
+          format: date-time
+        errorMessage:
+          type: [string, "null"]
+    SyncExecutionPage:
+      type: object
+      required: [items, page, limit, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncExecution"
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+          format: int64
+    Promotion:
+      type: object
+      required:
+        - id
+        - productId
+        - externalItemId
+        - title
+        - currency
+        - previousLowestPrice
+        - promotionalPrice
+        - discountAmount
+        - discountPercent
+        - detectedAt
+        - active
+        - offersCount
+      properties:
+        id:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        externalItemId:
+          type: string
+        catalogProductId:
+          type: [string, "null"]
+        title:
+          type: string
+        permalink:
+          type: [string, "null"]
+          format: uri
+        thumbnailUrl:
+          type: [string, "null"]
+          format: uri
+        currency:
+          type: string
+        previousLowestPrice:
+          type: string
+        promotionalPrice:
+          type: string
+        discountAmount:
+          type: string
+        discountPercent:
+          type: string
+        detectedAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+        offersCount:
+          type: integer
+        affiliateUrl:
+          type: [string, "null"]
+          format: uri
+    PromotionPage:
+      type: object
+      required: [items, page, limit, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Promotion"
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+          format: int64

@@ -104,6 +104,10 @@ curl "http://localhost:8080/api/admin/sync/executions?page=1&limit=20" -H "X-Adm
 
 Um `POST /api/admin/sync` sem corpo executa a descoberta automática: seleciona o próximo lote de categorias, consulta os 20 mais vendidos de cada uma, processa os termos opcionais de `SEARCH_TERMS` e revisita um lote de anúncios já salvos. Promoções ativas têm prioridade; as demais vagas são preenchidas pelos produtos com `last_seen_at` mais antigo, criando uma rotação natural. Um corpo com `searchTerms` executa apenas a busca manual solicitada. Não há rota adicional.
 
+A rota responde imediatamente com HTTP `202 Accepted` e a execução em estado `RUNNING`. O processamento continua em segundo plano e pode ser acompanhado em `GET /api/admin/sync/executions`. Isso evita manter clientes como Postman ou GPT Actions aguardando durante toda a consulta ao Mercado Livre.
+
+O arquivo `openapi-gpt-action.yaml` contém o schema para configurar uma Action em um GPT personalizado. O texto de `gpt-instructions.md` pode ser usado no campo de instruções do GPT.
+
 Os rankings podem trazer `ITEM`, `PRODUCT` ou `USER_PRODUCT`. O cliente resolve os três formatos oficiais; para cada produto de catálogo consulta no máximo as três ofertas públicas mais baratas da primeira página, mantendo a execução limitada. Quando o Mercado Livre informa preço original maior que o atual, a promoção é criada já na primeira observação; a mínima histórica continua funcionando em paralelo.
 
 Na listagem com `active=true`, anúncios que pertencem ao mesmo `catalogProductId` são agrupados. A API retorna a oferta de menor preço (maior desconto no desempate) e informa em `offersCount` quantos anúncios ativos foram comparados. Anúncios sem identificador de catálogo permanecem separados. Se o preço de um anúncio deixar o valor promocional, sua promoção anterior passa para `active=false`; o histórico não é apagado.

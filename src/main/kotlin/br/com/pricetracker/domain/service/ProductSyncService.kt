@@ -22,13 +22,20 @@ class ProductSyncService(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    suspend fun synchronize(requestedTerms: List<String>?): SyncExecutionResponse {
-        val manualTerms = requestedTerms?.map(String::trim)?.filter(String::isNotBlank)?.distinct()
-        if (requestedTerms != null && manualTerms.isNullOrEmpty()) throw InvalidRequestException("Informe ao menos um termo de busca")
-        val automatic = requestedTerms == null && highlightClient != null && highlightRotation != null && highlightCategories.isNotEmpty()
-        val executionLabels = if (automatic) listOf("AUTO_HIGHLIGHTS") + defaultTerms else (manualTerms ?: defaultTerms)
-        if (executionLabels.isEmpty()) throw InvalidRequestException("Não há termos nem categorias configuradas")
+    suspend fun start(requestedTerms: List<String>?): SyncExecutionResponse {
+        val executionLabels = executionLabels(requestedTerms)
         val executionId = executions.start(executionLabels)
+        return executions.get(executionId)
+    }
+
+    suspend fun synchronize(requestedTerms: List<String>?): SyncExecutionResponse {
+        val execution = start(requestedTerms)
+        return synchronize(execution.executionId, requestedTerms)
+    }
+
+    suspend fun synchronize(executionId: Long, requestedTerms: List<String>?): SyncExecutionResponse {
+        val manualTerms = requestedTerms?.map(String::trim)?.filter(String::isNotBlank)?.distinct()
+        val automatic = requestedTerms == null && highlightClient != null && highlightRotation != null && highlightCategories.isNotEmpty()
         val categories = if (automatic) highlightRotation!!.nextBatch(highlightCategories, highlightBatchSize) else emptyList()
         val terms = if (automatic) defaultTerms else (manualTerms ?: defaultTerms)
         val counters = SyncCounters()
@@ -84,6 +91,17 @@ class ProductSyncService(
             executionId, status, counters.itemsReceived, counters.promotionsCreated, timed.duration)
         if (status == SyncStatus.FAILED) throw ExternalApiException("Não foi possível consultar o Mercado Livre")
         return executions.get(executionId)
+    }
+
+    private fun executionLabels(requestedTerms: List<String>?): List<String> {
+        val manualTerms = requestedTerms?.map(String::trim)?.filter(String::isNotBlank)?.distinct()
+        if (requestedTerms != null && manualTerms.isNullOrEmpty()) {
+            throw InvalidRequestException("Informe ao menos um termo de busca")
+        }
+        val automatic = requestedTerms == null && highlightClient != null && highlightRotation != null && highlightCategories.isNotEmpty()
+        val labels = if (automatic) listOf("AUTO_HIGHLIGHTS") + defaultTerms else (manualTerms ?: defaultTerms)
+        if (labels.isEmpty()) throw InvalidRequestException("Não há termos nem categorias configuradas")
+        return labels
     }
 
     private suspend fun processItems(

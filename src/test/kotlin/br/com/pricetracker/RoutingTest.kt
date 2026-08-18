@@ -37,6 +37,19 @@ class RoutingTest {
         assertEquals(HttpStatusCode.Conflict, response.status)
     }
 
+    @Test fun `sincronizacao responde accepted antes de finalizar`() = testApplication {
+        val db = testDatabase(); val products = ProductRepository(db); val executions = SyncRepository(db)
+        application {
+            configureSerialization(); configureStatusPages()
+            configureRouting(products, executions, ProductSyncService(MarketClient { emptyList() }, products, executions, listOf("x")), "secret")
+        }
+
+        val response = client.post("/api/admin/sync") { header("X-Admin-Secret", "secret") }
+
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        assertTrue(response.bodyAsText().contains("\"status\":\"RUNNING\""))
+    }
+
     @Test fun `exporta urls de promocoes em csv ou linhas`() = testApplication {
         val db = testDatabase(); val products = ProductRepository(db); val executions = SyncRepository(db)
         val execution = executions.start(listOf("seed"))
