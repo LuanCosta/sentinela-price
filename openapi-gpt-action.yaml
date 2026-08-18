@@ -84,6 +84,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PromotionPage"
+  /api/promotions/urls:
+    get:
+      operationId: exportarUrlsParaAfiliados
+      summary: Exporta as URLs originais das promoções ativas
+      description: Use quando o usuário pedir URLs para gerar links de afiliado. Retorna somente as URLs originais dos produtos, uma por linha, na ordem que deve ser preservada no gerador e na posterior importação dos links de afiliado.
+      responses:
+        "200":
+          description: URLs originais das promoções ativas, uma por linha
+          content:
+            text/plain:
+              schema:
+                type: string
+                examples:
+                  - |-
+                    https://produto.mercadolivre.com.br/MLB-EXEMPLO-1
+                    https://produto.mercadolivre.com.br/MLB-EXEMPLO-2
 components:
   securitySchemes:
     AdminSecret:
